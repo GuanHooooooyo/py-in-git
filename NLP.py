@@ -3,85 +3,42 @@ import en_qai_sm
 from spacy.matcher import PhraseMatcher
 import pandas as pd
 from spacy.util import minibatch
-
-#nlp = en_qai_sm.load()
-
-#doc = nlp("Tea is healthy and calming, don't you think?")
-#
-# for token in doc:
-#     print(token)
-
-# print(f"Token \t\tLemma \t\tStopword".format('Token', 'Lemma', 'Stopword'))
-# print("-"*40)
-# for token in doc:
-#     print(f"{str(token)}\t\t{token.lemma_}\t\t{token.is_stop}")
-#
-# matcher = PhraseMatcher(nlp.vocab, attr='LOWER')
-#
-# terms = ['Galaxy Note', 'iPhone 11', 'iPhone XS', 'Google Pixel']
-# patterns = [nlp(text) for text in terms]
-# matcher.add("TerminologyList", None, *patterns)
-#
-# text_doc = nlp("Glowing review overall, and some really interesting side-by-side "
-#                "photography tests pitting the iPhone 11 Pro against the "
-#                "Galaxy Note 10 Plus and some test is good in iPhone 11 "
-#                "last year’s iPhone XS and Google Pixel 3.")
-# matches = matcher(text_doc)
-# print(matches)
-# match_id, start, end = matches[0]
-# print(nlp.vocab.strings[match_id], text_doc[start:end])
-
-df = pd.read_csv('D:\py in git\spam.csv')
-df.head(5)
-print(df)
-nlp = spacy.blank("en")
-print('success')
-textcat = nlp.create_pipe(
-    "textcat",config={
-    "exclusive_classes": True,
-    "architecture": "bow"})
-
-# Add the TextCategorizer to the empty model
-nlp.add_pipe(textcat)
-textcat.add_label('ham')
-textcat.add_label('spam')
-print(textcat)
-train_texts = df['text'].values
-train_labels = [{'cats': {'ham': label == 'ham',
-                          'spam': label == 'spam'}}
-                for label in df['type']]
-train_data = list(zip(train_texts, train_labels))
-print(train_data[:3])
+from ckiptagger import WS,POS,NER
+import os
+#path = os.path.abspath('D:\CKIPdataset\data')
+ws = WS(".\data")
+pos = POS(".\data")
+ner = NER(".\data")
 
 
-import random
-random.seed(1)
-spacy.util.fix_random_seed(1)
-optimizer = nlp.begin_training()
+sentence_list = ["傅達仁今將執行安樂死，卻突然爆出自己20年前遭緯來體育台封殺，他不懂自己哪裡得罪到電視台。",
+                "美國參議院針對今天總統布什所提名的勞工部長趙小蘭展開認可聽證會，預料她將會很順利通過參議院支持，成為該國有史以來第一位的華裔女性內閣成員。",
+                  "",
+                "土地公有政策?？還是土地婆有政策。.",
+                "… 你確定嗎… 不要再騙了……",
+                "最多容納59,000個人,或5.9萬人,再多就不行了.這是環評的結論.",
+                "科長說:1,坪數對人數為1:3。2,可以再增加。"]
 
-losses = {}
-for epoch in range(10):
-    random.shuffle(train_data)
-    # Create the batch generator with batch size = 8
-    batches = minibatch(train_data, size=8)
-    # Iterate through minibatches
-    for batch in batches:
-        # Each batch is a list of (text, label) but we need to
-        # send separate lists for texts and labels to update().
-        # This is a quick way to split a list of tuples into lists
-        texts, labels = zip(*batch)
-        nlp.update(texts, labels, sgd=optimizer, losses=losses)
-    print(losses)
-texts = ["Are you ready for the tea party????? It's gonna be wild",
-         "URGENT Reply to this message for GUARANTEED FREE TEA"]
-docs = [nlp.tokenizer(text) for text in texts]
+word_s = ws(sentence_list,
+            sentence_segmentation=True,
+            segment_delimiter_set={'?', '？', '!', '！', '。', ',','，', ';', ':', '、'})
+word_p = pos(word_s)
+word_n = ner(word_s,word_p)
 
-# Use textcat to get the scores for each doc
-textcat = nlp.get_pipe('textcat')
-scores, _ = textcat.predict(docs)
+def combine_wandp(w_list, p_list):
+    assert len(w_list) == len(p_list)
+    for w, p in zip(w_list, p_list):
+        print ('{}({})'.format(w, p), end='\u3000')
 
-print(scores)
+for i, sentence in enumerate(sentence_list):
+    print ("'{}'".format(sentence))
+    combine_wandp(word_s[i], word_p[i])
+    print ()
+    for n in sorted(word_n[i]):
+        print (n)
+    print('\n')
 
-# From the scores, find the label with the highest score/probability
-predicted_labels = scores.argmax(axis=1)
-print([textcat.labels[label] for label in predicted_labels])
+
+
+
+
